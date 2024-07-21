@@ -79,9 +79,47 @@ def create_redis_container(network_name):
     return container
     # ip_add = container.attrs['NetworkSettings']["Networks"][network_name]["IPAddress"]
 
+def rename_services(containers_file, calls_file):
+    # Read containers.txt and create a mapping
+    with open(containers_file, 'r') as f:
+        container_ids = f.read().splitlines()
+    
+    id_to_service = {container_id: f"Service_{index+1}" for index, container_id in enumerate(container_ids)}
+    
+    # Update containers.txt with new service names
+    with open(containers_file, 'w') as f:
+        for container_id in container_ids:
+            f.write(f"{id_to_service[container_id]}\n")
+    
+    # Read calls.json
+    with open(calls_file, 'r') as f:
+        calls_data = json.load(f)
+    
+    # Function to recursively replace IDs in nested dictionaries or lists
+    def replace_ids(data):
+        if isinstance(data, dict):
+            return {id_to_service.get(key, key): replace_ids(value) for key, value in data.items()}
+        elif isinstance(data, list):
+            return [replace_ids(item) for item in data]
+        else:
+            return id_to_service.get(data, data)
+    
+    # Update calls.json with new service names
+    updated_calls_data = replace_ids(calls_data)
+    
+    # Save updated calls.json
+    with open(calls_file, 'w') as f:
+        json.dump(updated_calls_data, f, indent=4)
+
 
 # Main function
 def main():
+    containers_file = '/Users/premsemitha/capstone/demoApplication/containers/containers.txt'
+    calls_file = '/Users/premsemitha/capstone/demoApplication/containers/calls.json'
+    
+    # Rename services before any other operation
+    rename_services(containers_file, calls_file)
+
     network_name = "static_application"
     container_names_file = "containers.txt"
 
